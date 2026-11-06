@@ -34,3 +34,22 @@
 .photo-ocr-raw{margin-top:12px;border:1px solid #d7e0d7;border-radius:10px;padding:10px;font-size:12px}
 .photo-ocr-raw summary{cursor:pointer;font-weight:700}
 .photo-ocr-raw pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:180px;overflow:auto}
+
+/* 写真結果の要約を最優先に表示する */
+.photo-quick-result{margin:14px 0}
+.guide-card{background:#fff;border:2px solid #bad5c2;border-radius:17px;padding:18px 16px;line-height:1.7;overflow-wrap:anywhere;box-shadow:0 6px 20px #153f2610}
+.guide-eyebrow{color:#537765;font-size:12px;font-weight:800}
+.guide-title{font-size:25px;line-height:1.4;letter-spacing:-.04em;margin:7px 0 12px;color:#153e2c}
+.guide-answer{font-size:17px;font-weight:850;color:#1b6541}
+.guide-card p{margin:10px 0;line-height:1.65}
+.guide-schedule{background:#eff6ef;border-radius:12px;padding:15px 13px;margin:17px 0 10px}
+.guide-next{font-size:21px;font-weight:850;margin:8px 0;color:#174d31}
+.guide-form-label{display:block;font-size:12px;font-weight:750;margin-top:15px}
+.guide-district{width:100%;border:1px solid #a6c9b4;border-radius:10px;background:#fff;color:#204c34;font-size:16px;padding:12px;margin-top:6px}
+.guide-save,.guide-confirm{display:block;width:100%;border:0;border-radius:11px;padding:12px;background:#186747;color:#fff;font-size:15px;font-weight:750;margin:12px 0;min-height:46px}
+.guide-link{display:block;font-size:12px;font-weight:700;margin-top:9px;overflow-wrap:anywhere}
+.guide-small{font-size:12px;color:#537064}
+.guide-disclaimer{font-size:11px;color:#876a40;background:#fff8ec;border-radius:8px;padding:10px;margin-top:14px!important}
+.photo-visual-details,.photo-label-details{margin-top:13px;border:1px solid #dae5dc;border-radius:12px;padding:12px;background:#f9fcf9}
+.photo-visual-details>summary,.photo-label-details>summary{font-size:13px;font-weight:750;color:#2e6848;cursor:pointer}
+.photo-visual-details .photo-analysis{margin-top:10px}
