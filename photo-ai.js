@@ -70,6 +70,9 @@ let open=false;
 let currentId=0;
 let photoURL=null;
 let imageData=null;
+let jobTimer=null;
+function clearJobTimer(){clearTimeout(jobTimer);jobTimer=null;}
+function stopWorker(){clearJobTimer();worker?.terminate();worker=null;}
 const B=document.createElement.bind(document);
 function el(tag,cls,text){const e=B(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
 function btn(text,cls,fn){const b=el('button',cls,text);b.type='button';b.addEventListener('click',fn);return b;}
@@ -86,17 +89,17 @@ function showPhotoDialog(){
  const choices=el('div','photo-choices');
  choices.append(btn('📷 カメラで撮影','primary',()=>$('photoCamera').click()),btn('▧ 写真を選ぶ','secondary',()=>$('photoLibrary').click()));box.append(choices);
  const preview=el('div','photo-preview');preview.id='photoPreview';preview.hidden=true;box.append(preview);
- const analysis=el('div','photo-analysis');analysis.id='photoAnalysis';analysis.append(el('p','subtle','初回は画像認識AI（約55MB目安）のダウンロードが必要です。Wi-Fi推奨。写真は判別サーバーに送らず、このiPhone内で解析します。'));box.append(analysis);
+ const analysis=el('div','photo-analysis');analysis.id='photoAnalysis';analysis.append(el('p','subtle','初回は画像認識AI（約90MB目安・別途エンジン取得）のダウンロードが必要です。Wi-Fi推奨。写真は判別サーバーに送らず、このiPhone内で解析します。'));box.append(analysis);
  box.append(btn('文字で検索する','secondary photo-text-link',()=>{closePhoto();$('searchInput').focus();}));
  shell.append(box);shell.onclick=e=>{if(e.target===shell)closePhoto();};
 }
-function closePhoto(){currentId++;open=false;resetPhoto();$('overlay').replaceChildren();$('overlay').classList.add('hidden');document.body.style.overflow='';}
+function closePhoto(){stopWorker();currentId++;open=false;resetPhoto();$('overlay').replaceChildren();$('overlay').classList.add('hidden');document.body.style.overflow='';}
 function pickFile(file){
  if(!file)return;
  if(!file.type.startsWith('image/')){setMessage('画像ファイルを選択してください。',true);return;}
  if(file.size>25*1024*1024){setMessage('25MB以下の写真を選択してください。',true);return;}
  if(!open)showPhotoDialog();
- resetPhoto();currentId++;
+ clearJobTimer();resetPhoto();currentId++;
  photoURL=URL.createObjectURL(file);
  const preview=$('photoPreview');preview.replaceChildren();
  const img=el('img','photo-image');img.src=photoURL;img.alt='撮影した品目の写真';preview.append(img);preview.hidden=false;
@@ -128,21 +131,33 @@ function setMessage(msg,warning=false){
 }
 function getWorker(){
  if(worker)return worker;
- worker=new Worker('./photo-worker.js',{type:'module'});
- worker.onmessage=e=>{
+ const instance=new Worker('./photo-worker.js',{type:'module'});
+ worker=instance;
+ instance.onmessage=e=>{
+   if(worker!==instance)return;
    const {type,id,results,message}=e.data||{};
    if(!open||id!==currentId)return;
    if(type==='status')setMessage(message);
-   if(type==='error'){console.warn(message);setMessage('画像認識を実行できませんでした。通信環境・空き容量を確認するか、文字検索をご利用ください。',true);}
-   if(type==='results')renderResults(results||[]);
+   if(type==='error'){console.warn(message);stopWorker();showRetry('画像認識を実行できませんでした。通信環境・空き容量を確認してください。');}
+   if(type==='results'){clearJobTimer();renderResults(results||[]);}
  };
- worker.onerror=e=>{console.warn('画像認識ワーカーを起動できませんでした。',e);if(open)setMessage('画像認識エンジンを起動できません。Safariの更新とインターネット接続を確認してください。',true);worker?.terminate();worker=null;};
+ instance.onerror=e=>{if(worker!==instance)return;console.warn('画像認識ワーカーを起動できませんでした。',e);stopWorker();if(open&&imageData)showRetry('画像認識エンジンを起動できません。Safariの更新とインターネット接続を確認してください。');};
  return worker;
 }
+function showRetry(message){
+ setMessage(message,true);
+ const target=$('photoAnalysis');
+ if(target&&imageData)target.append(btn('もう一度判別する','secondary',()=>{currentId++;classify(imageData,currentId);}));
+}
 function classify(image,job){
+ clearJobTimer();
  setMessage('画像認識AIを読み込み中です。初回のみダウンロードが発生します…');
+ jobTimer=setTimeout(()=>{
+   if(!open||job!==currentId)return;
+   stopWorker();showRetry('写真判別が時間内に完了しませんでした。通信環境を確認して再試行するか、文字検索をご利用ください。');
+ },180000);
  try{getWorker().postMessage({type:'classify',id:job,image,labels:CATALOG.map(x=>x[1])});}
- catch(e){setMessage('画像認識を開始できませんでした。文字検索を利用してください。',true);}
+ catch(e){stopWorker();showRetry('画像認識を開始できませんでした。文字検索も利用できます。');}
 }
 function norm(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[\u30a1-\u30f6]/g,c=>String.fromCharCode(c.charCodeAt(0)-96)).replace(/[\s\u3000・ー－_()（）\-]/g,'').trim();}
 function itemMatches(items,entry){
