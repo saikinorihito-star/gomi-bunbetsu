@@ -70,6 +70,7 @@ let open=false;
 let currentId=0;
 let photoURL=null;
 let imageData=null;
+let labelSelection=null;
 let jobTimer=null;
 function clearJobTimer(){clearTimeout(jobTimer);jobTimer=null;}
 function stopWorker(){clearJobTimer();worker?.terminate();worker=null;}
@@ -77,18 +78,19 @@ const B=document.createElement.bind(document);
 function el(tag,cls,text){const e=B(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
 function btn(text,cls,fn){const b=el('button',cls,text);b.type='button';b.addEventListener('click',fn);return b;}
 function notice(text,alert=false){return el('div','notice'+(alert?' warn':''),text);}
-function resetPhoto(){if(photoURL){URL.revokeObjectURL(photoURL);photoURL=null;}imageData=null;}
+function resetPhoto(){if(photoURL){URL.revokeObjectURL(photoURL);photoURL=null;}imageData=null;labelSelection=null;}
 function showPhotoDialog(){
  open=true;currentId++;
  const shell=$('overlay');shell.replaceChildren();shell.classList.remove('hidden');document.body.style.overflow='hidden';
  const box=el('div','sheet photo-sheet');box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','写真で品目を調べる');
  box.append(el('div','sheet-grab'));
  const top=el('div','sheet-top');top.append(el('div','sheet-title','写真で品目を調べる'),btn('×','close',closePhoto));box.append(top);
- box.append(el('p','','捨てたいものを1点だけ、明るい場所で撮影してください。写真から品目の候補を探し、登録した自治体の分別ルールに進めます。'));
+ box.append(el('p','','品目全体またはラベルの文字・識別マークを明るい場所で撮影してください。文字と外観の両方から候補を探します。'));
  box.append(notice('AIによる推定です。材質・電池の有無・ガス残量・膨張・破損は写真だけでは判断できません。出す前に必ず品目と公式ルールを確認してください。',true));
  const choices=el('div','photo-choices');
  choices.append(btn('📷 カメラで撮影','primary',()=>$('photoCamera').click()),btn('▧ 写真を選ぶ','secondary',()=>$('photoLibrary').click()));box.append(choices);
  const preview=el('div','photo-preview');preview.id='photoPreview';preview.hidden=true;box.append(preview);
+ const labelPanel=el('section','photo-label-panel');labelPanel.id='photoLabelPanel';labelPanel.setAttribute('aria-live','polite');box.append(labelPanel);
  const analysis=el('div','photo-analysis');analysis.id='photoAnalysis';analysis.append(el('p','subtle','初回は画像認識AI（約90MB目安・別途エンジン取得）のダウンロードが必要です。Wi-Fi推奨。写真は判別サーバーに送らず、このiPhone内で解析します。'));box.append(analysis);
  box.append(btn('文字で検索する','secondary photo-text-link',()=>{closePhoto();$('searchInput').focus();}));
  shell.append(box);shell.onclick=e=>{if(e.target===shell)closePhoto();};
@@ -103,12 +105,13 @@ function pickFile(file){
  photoURL=URL.createObjectURL(file);
  const preview=$('photoPreview');preview.replaceChildren();
  const img=el('img','photo-image');img.src=photoURL;img.alt='撮影した品目の写真';preview.append(img);preview.hidden=false;
- setMessage('写真を準備しています…');
+ setMessage('ラベルの文字を読み取ってから、外観AIで補助判別します…');
+ showLabelControls();
  const job=currentId;
  resizePhoto(file).then(data=>{
    if(!open||job!==currentId)return;
    imageData=data;
-   classify(data,job);
+   classifyWithLabel(file,data,job);
  }).catch(err=>{if(open&&job===currentId)setMessage('写真を読み込めませんでした。別の写真を選んでください。',true);console.warn(err);});
 }
 function resizePhoto(file){return new Promise((resolve,reject)=>{
@@ -125,6 +128,77 @@ function resizePhoto(file){return new Promise((resolve,reject)=>{
   img.onerror=()=>{URL.revokeObjectURL(url);reject(Error('画像を開けません'));};
   img.src=url;
  });}
+
+function showLabelControls(){
+ const target=$('photoLabelPanel');if(!target)return;
+ target.replaceChildren();
+ target.append(el('h3','photo-results-heading','① ラベル・識別表示を調べる'));
+ const msg=el('p','subtle','ラベルを読み取ります。読み取りが難しいマークは、自分で選ぶこともできます。');msg.id='photoLabelStatus';target.append(msg);
+ const row=el('div','photo-label-choices');
+ const opts=[['plastic','プラ'],['pet','PET'],['paper','紙'],['aluminum','アルミ'],['steel','スチール'],['spray','スプレー'],['battery','電池']];
+ for(const [id,title] of opts)row.append(btn(title,'photo-label-choice',()=>{labelSelection=id;renderLabelChoices([{id,label:title,evidence:'写真を見て利用者が選択'}]);}));
+ target.append(row);
+ const output=el('div','photo-label-output');output.id='photoLabelOutput';target.append(output);
+}
+function labelNorm(x){return String(x||'').normalize('NFKC').toLowerCase().replace(/[\s　・()（）_\-ー]/g,'');}
+function findLabelMatches(patterns){
+ const items=window.GOMI_PHOTO_API.listItems(),terms=patterns.map(labelNorm);
+ return items.map(item=>{
+    const n=labelNorm(item.name),aliases=(item.aliases||[]).map(labelNorm);
+    const exact=terms.some(t=>n===t||aliases.includes(t));
+    const partial=terms.some(t=>t.length>=3&&(n.includes(t)||aliases.some(a=>a.includes(t))));
+    return {item,rank:exact?2:partial?1:0};
+ }).filter(x=>x.rank>0).sort((a,b)=>b.rank-a.rank).slice(0,5).map(x=>x.item);
+}
+function renderLabelChoices(marks,rawText=''){
+ const target=$('photoLabelOutput');if(!target)return;target.replaceChildren();
+ const options=window.GOMI_LABEL_OCR?.OPTIONS||{};
+ if(marks?.length){
+   const summary=el('p','photo-label-evidence','確認した表示：'+marks.map(m=>m.label).join('、'));
+   target.append(summary);
+ }else target.append(notice('判別可能な表示が見つかりませんでした。マークを選択するか、品目名を検索してください。',true));
+ const seen=new Set();
+ for(const mark of marks||[]){
+   if(seen.has(mark.id))continue;seen.add(mark.id);
+   const option=options[mark.id];if(!option)continue;
+   const card=el('div','photo-candidate');
+   card.append(el('strong','',option.title),el('p','subtle','根拠：'+mark.evidence));
+   card.append(notice(option.caution,true));
+   const items=findLabelMatches(option.patterns);
+   if(items.length){
+     for(const item of items.slice(0,3)){
+       const b=btn(item.name+'　›','photo-match',()=>{closePhoto();window.GOMI_PHOTO_API.detail(item);});
+       b.append(el('small','',item.category));card.append(b);
+     }
+   }else card.append(notice('同名の品目が登録辞典にありません。自動的に分別方法を確定しません。'));
+   card.append(btn('この品目に近いものを文字検索','secondary photo-search',()=>searchFor(option.patterns[0])));
+   target.append(card);
+ }
+ if(rawText.trim()){
+   const details=el('details','photo-ocr-raw');
+   details.append(el('summary','','読み取った文字を表示（誤認識する場合があります）'));
+   const pre=el('pre','',rawText.slice(0,1000));details.append(pre);target.append(details);
+ }
+}
+async function classifyWithLabel(file,image,job){
+ const status=$('photoLabelStatus');
+ try{
+   if(!window.GOMI_LABEL_OCR)throw Error('OCRの読み込み機能が見つかりません');
+   const result=await window.GOMI_LABEL_OCR.scan(file,progress=>{if(open&&job===currentId&&status)status.textContent=progress;});
+   if(!open||job!==currentId)return;
+   if(status)status.textContent='日本語OCR完了。結果は推定であり、識別マークを確実に認識したとは限りません。';
+   const marks=result.marks||[];
+   if(labelSelection&&!marks.some(x=>x.id===labelSelection))marks.unshift({id:labelSelection,label:'利用者によるマーク指定',evidence:'利用者が写真を確認して選択'});
+   renderLabelChoices(marks,result.text||'');
+ }catch(err){
+   if(!open||job!==currentId)return;
+   console.warn('ラベルOCRに失敗しました',err);
+   if(status)status.textContent='ラベルの自動読み取りに失敗しました。上のマークを選ぶか、外観AIの候補をご確認ください。';
+   if(labelSelection)renderLabelChoices([{id:labelSelection,label:'利用者によるマーク指定',evidence:'利用者が写真を確認して選択'}]);
+ }
+ if(open&&job===currentId)classify(image,job);
+}
+
 function setMessage(msg,warning=false){
   const target=$('photoAnalysis');if(!target)return;
   target.replaceChildren(notice(msg,warning));
