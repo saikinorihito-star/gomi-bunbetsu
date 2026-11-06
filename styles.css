@@ -22,3 +22,15 @@
 .photo-match small{font-size:10px;font-weight:650;color:#617f71;text-align:right;max-width:45%}
 .photo-search{width:100%;font-size:12px;margin-top:3px}
 .photo-text-link{width:100%;margin:15px 0}
+
+/* 写真ラベル・識別表示のOCR候補 */
+.photo-label-panel{margin-top:12px;padding:13px;border:1px solid #d6e6d7;border-radius:14px;background:#f8fcf8}
+.photo-label-choices{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.photo-label-choice{border:1px solid #a9c8b1;background:#edf6ef;color:#235a3c;border-radius:20px;padding:8px 12px;font-size:12px;font-weight:750;min-height:39px}
+.photo-label-choice:focus-visible{outline:2px solid #226644;outline-offset:2px}
+.photo-label-output .notice{margin:7px 0;font-size:12px}
+.photo-label-output .photo-candidate{margin:9px 0;background:#fff}
+.photo-label-evidence{margin:9px 0;font-size:12px;color:#275b40;font-weight:700}
+.photo-ocr-raw{margin-top:12px;border:1px solid #d7e0d7;border-radius:10px;padding:10px;font-size:12px}
+.photo-ocr-raw summary{cursor:pointer;font-weight:700}
+.photo-ocr-raw pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:180px;overflow:auto}
