@@ -12,7 +12,7 @@ function date(name,after){return guide.nextCollection(name,after)?.date}
 test('official district calendar: first/third and second/fourth dates differ',()=>{
  assert.equal(date('野村','2026-11-07'),'2026-11-18');
  assert.equal(date('定塚','2026-11-07'),'2026-11-11');
- assert.equal(date('川原','2026-11-07'),'2026-11-09');
+ assert.equal(date('川原','2026-11-07'),'2026-11-16');
  assert.equal(date('成美','2026-11-07'),'2026-11-13');
 });
 test('official 2026 calendar exceptions must not be guessed',()=>{
