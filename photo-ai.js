@@ -89,7 +89,7 @@ function showPhotoDialog(){
  const choices=el('div','photo-choices');
  choices.append(btn('📷 カメラで撮影','primary',()=>$('photoCamera').click()),btn('▧ 写真を選ぶ','secondary',()=>$('photoLibrary').click()));box.append(choices);
  const preview=el('div','photo-preview');preview.id='photoPreview';preview.hidden=true;box.append(preview);
- const analysis=el('div','photo-analysis');analysis.id='photoAnalysis';analysis.append(el('p','subtle','初回は画像認識AI（約55MB目安）のダウンロードが必要です。Wi-Fi推奨。写真は判別サーバーに送らず、このiPhone内で解析します。'));box.append(analysis);
+ const analysis=el('div','photo-analysis');analysis.id='photoAnalysis';analysis.append(el('p','subtle','初回は画像認識AI（約90MB目安・別途エンジン取得）のダウンロードが必要です。Wi-Fi推奨。写真は判別サーバーに送らず、このiPhone内で解析します。'));box.append(analysis);
  box.append(btn('文字で検索する','secondary photo-text-link',()=>{closePhoto();$('searchInput').focus();}));
  shell.append(box);shell.onclick=e=>{if(e.target===shell)closePhoto();};
 }

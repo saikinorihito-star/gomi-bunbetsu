@@ -59,8 +59,9 @@ const server=http.createServer(async(req,res)=>{
          worker.postMessage({type:'classify',id:1,image,labels:['a photograph of cats','a photograph of dogs','a photograph of birds']});
        })}finally{worker.terminate()}
      },`data:image/jpeg;base64,${buffer.toString('base64')}`);
+     console.log('Real model scores:',JSON.stringify(result));
      assert.equal(result[0].label,'a photograph of cats');assert(result.every(x=>Number.isFinite(x.score)));
-     console.log('PASS: real MobileCLIP q8 WASM inference in Chromium:',JSON.stringify(result));
+     console.log('PASS: real MobileCLIP text q8 / vision FP32 WASM inference in Chromium:',JSON.stringify(result));
      await page.locator('#openPhoto').click();await page.locator('#photoLibrary').setInputFiles({name:'cats.jpg',mimeType:'image/jpeg',buffer});
      await page.locator('.photo-candidate').first().waitFor({timeout:180000});assert.equal(await page.locator('.photo-candidate').count(),5);
      await page.getByRole('button',{name:'文字で検索する',exact:true}).click();

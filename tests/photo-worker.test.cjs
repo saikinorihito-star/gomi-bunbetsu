@@ -10,7 +10,7 @@ function harness({failLoad=false,blockFirst=false}={}){
  const blocked=new Promise(r=>release=r);
  const tensor=rows=>({normalize:()=>({tolist:()=>rows})});
  const loader=(kind,value)=>({from_pretrained:async(model,options)=>{
-   loads.push(kind);assert.equal(model,'Xenova/mobileclip_s0');assert.equal(options.device,'wasm');assert.equal(options.dtype,'q8');
+   loads.push(kind);assert.equal(model,'Xenova/mobileclip_s0');assert.equal(options.device,'wasm');assert.equal(options.dtype,kind==='vision'?'fp32':'q8');
    if(failLoad){failLoad=false;throw Error('download failed')}
    return value;
  }});
@@ -35,7 +35,7 @@ function harness({failLoad=false,blockFirst=false}={}){
  const job=(id,image,labels=Array.from({length:17},(_,i)=>String(i)))=>self.onmessage({data:{type:'classify',id,image,labels}});
  return {messages,calls,loads,batches,job,release,env,get maxActive(){return maxActive}};
 }
-test('inference is serialized; only latest waiting photo runs; split models and text embeddings are reused',async()=>{
+test('inference is serialized; only latest waiting photo runs; split model precision and text embedding reuse are preserved',async()=>{
  const h=harness({blockFirst:true});const first=h.job(1,'first');await new Promise(setImmediate);
  await h.job(2,'skipped');await h.job(3,'latest');h.release();await first;
  assert.deepEqual(h.calls,['first','latest']);assert.equal(h.maxActive,1);

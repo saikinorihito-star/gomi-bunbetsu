@@ -10,7 +10,7 @@ node --test tests/*.test.cjs
 
 モデルのダウンロードは不要です。以下を模擬モデルで確認します。
 
-- 画像用・テキスト用モデルを分けて読み込み、q8 / WASM を指定する
+- 画像用・テキスト用モデルを分けて読み込み、テキストq8・画像FP32 / WASM を指定する
 - 候補名を最大8件ずつ処理し、同じ候補のテキスト特徴量を再利用する
 - 写真を連続選択しても推論は直列に実行し、待機中は最新の写真のみ残す
 - 上位5候補、読み込み・推論失敗後の再試行
@@ -31,14 +31,14 @@ node tests/browser-smoke.cjs --real-model
 
 `--real-model` は追加で以下を確認します。CDN・Hugging Face・モデル配布先に接続できる環境が必要です。
 
-1. 公開の猫の写真で、実際の `photo-worker.js` とMobileCLIP q8モデルをWASMで動かし、猫・犬・鳥のうち猫が最上位になること。
+1. 公開の猫の写真で、実際の `photo-worker.js` とMobileCLIP（テキストq8・画像FP32）モデルをWASMで動かし、猫・犬・鳥のうち猫が最上位になること。
 2. 同じ写真をアプリで選び、縮小・判別・5件のカタログ候補表示まで到達すること。
 
 猫の写真はごみの品目写真ではないため、このテストは起動・推論・表示の疎通確認です。ごみの品目判別精度やiPhone Safariの動作を保証するテストではありません。
 
 ## モデル実装の根拠
 
-配布元の[MobileCLIPモデルカード](https://huggingface.co/Xenova/mobileclip_s0)と[ONNXファイル一覧](https://huggingface.co/Xenova/mobileclip_s0/tree/main/onnx)に合わせ、`CLIPTextModelWithProjection` と `CLIPVisionModelWithProjection` を個別に読み込みます。一体型の `model_quantized.onnx` を要求する汎用pipelineは使いません。正規化したテキスト・画像特徴量の内積から候補を並べます。
+配布元の[MobileCLIPモデルカード](https://huggingface.co/Xenova/mobileclip_s0)と[ONNXファイル一覧](https://huggingface.co/Xenova/mobileclip_s0/tree/main/onnx)に合わせ、`CLIPTextModelWithProjection` と `CLIPVisionModelWithProjection` を個別に読み込みます。一体型の `model_quantized.onnx` を要求する汎用pipelineは使いません。画像モデルは配布元の `config.json` と同じFP32を指定します。初回のモデル取得量は合計約90MB（別途エンジン取得）です。正規化したテキスト・画像特徴量の内積から候補を並べます。
 
 ## 今回のローカル検証結果
 

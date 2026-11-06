@@ -21,7 +21,8 @@ async function classifier(){
       const processor=await AutoProcessor.from_pretrained(MODEL,options);
       const textModel=await CLIPTextModelWithProjection.from_pretrained(MODEL,options);
       try{
-        const visionModel=await CLIPVisionModelWithProjection.from_pretrained(MODEL,options);
+        // 配布元の推奨設定。画像モデルは量子化で精度が低下するため FP32 を使う。
+        const visionModel=await CLIPVisionModelWithProjection.from_pretrained(MODEL,{...options,dtype:'fp32'});
         return {tokenizer,processor,textModel,visionModel};
       }catch(err){await textModel.dispose();throw err;}
     })().catch(e=>{ready=null;throw e;});
