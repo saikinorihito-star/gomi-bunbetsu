@@ -1,0 +1,30 @@
+name: Photo AI tests
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  photo-ai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check syntax and run offline tests
+        run: |
+          node --check app.js
+          node --check photo-ai.js
+          node --check photo-worker.js
+          node --check sw.js
+          node --test tests/*.test.cjs
+      - name: Install browser test tools outside app source
+        run: |
+          npm install --prefix "$RUNNER_TEMP/photo-ai-test" --no-save --no-package-lock playwright@1.56.1
+          "$RUNNER_TEMP/photo-ai-test/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify saved data, browser UI and real MobileCLIP inference
+        env:
+          NODE_PATH: ${{ runner.temp }}/photo-ai-test/node_modules
+        run: node tests/browser-smoke.cjs --real-model
