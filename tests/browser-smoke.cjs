@@ -39,6 +39,7 @@ const server=http.createServer(async(req,res)=>{
    await page.locator('#openPhoto').click();
    const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
    await page.locator('#photoLibrary').setInputFiles({name:'sample.png',mimeType:'image/png',buffer:png});
+   await page.locator('.photo-visual-details > summary').click();
    await page.getByRole('button',{name:'もう一度判別する',exact:true}).waitFor();
    await page.getByRole('button',{name:'もう一度判別する',exact:true}).click();await page.getByRole('button',{name:'もう一度判別する',exact:true}).waitFor();
    await page.getByRole('button',{name:'文字で検索する',exact:true}).click();
@@ -62,7 +63,7 @@ const server=http.createServer(async(req,res)=>{
      console.log('Real model scores:',JSON.stringify(result));
      assert.equal(result[0].label,'a photograph of cats');assert(result.every(x=>Number.isFinite(x.score)));
      console.log('PASS: real MobileCLIP text q8 / vision FP32 WASM inference in Chromium:',JSON.stringify(result));
-     await page.locator('#openPhoto').click();await page.locator('#photoLibrary').setInputFiles({name:'cats.jpg',mimeType:'image/jpeg',buffer});
+     await page.locator('#openPhoto').click();await page.locator('#photoLibrary').setInputFiles({name:'cats.jpg',mimeType:'image/jpeg',buffer});await page.locator('.photo-visual-details > summary').click();
      await page.locator('.photo-candidate').first().waitFor({timeout:180000});assert.equal(await page.locator('.photo-candidate').count(),5);
      await page.getByRole('button',{name:'文字で検索する',exact:true}).click();
      console.log('PASS: real photo upload → resize → worker → five catalog candidates (sample is not a waste item; disposal accuracy is not assessed)');

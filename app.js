@@ -156,6 +156,6 @@ function init(){for(const b of document.querySelectorAll('.navbtn'))b.addEventLi
 for(const q of ['モバイルバッテリー','スプレー缶','ペットボトル','包丁'])$('quickChips').append(button(q,'',()=>{$('searchInput').value=q;showTab('search');}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});runSearch();if('serviceWorker'in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
-window.GOMI_PHOTO_API={listItems,detail,runSearch};
+window.GOMI_PHOTO_API={listItems,detail,runSearch,getCurrentCityId:()=>state.current};
 init();
 })();

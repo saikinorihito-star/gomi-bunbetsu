@@ -90,8 +90,9 @@ function showPhotoDialog(){
  const choices=el('div','photo-choices');
  choices.append(btn('📷 カメラで撮影','primary',()=>$('photoCamera').click()),btn('▧ 写真を選ぶ','secondary',()=>$('photoLibrary').click()));box.append(choices);
  const preview=el('div','photo-preview');preview.id='photoPreview';preview.hidden=true;box.append(preview);
+ const quick=el('div','photo-quick-result');quick.id='photoQuickResult';box.append(quick);
  const labelPanel=el('section','photo-label-panel');labelPanel.id='photoLabelPanel';labelPanel.setAttribute('aria-live','polite');box.append(labelPanel);
- const analysis=el('div','photo-analysis');analysis.id='photoAnalysis';analysis.append(el('p','subtle','初回は画像認識AI（約90MB目安・別途エンジン取得）のダウンロードが必要です。Wi-Fi推奨。写真は判別サーバーに送らず、このiPhone内で解析します。'));box.append(analysis);
+ const analysis=el('div','photo-analysis');analysis.id='photoAnalysis';analysis.append(el('p','subtle','初回は画像認識AI（約90MB目安・別途エンジン取得）のダウンロードが必要です。Wi-Fi推奨。写真は判別サーバーに送らず、このiPhone内で解析します。'));const visual=el('details','photo-visual-details');visual.append(el('summary','','外観AIのその他の候補を見る（参考）'));visual.append(analysis);box.append(visual);
  box.append(btn('文字で検索する','secondary photo-text-link',()=>{closePhoto();$('searchInput').focus();}));
  shell.append(box);shell.onclick=e=>{if(e.target===shell)closePhoto();};
 }
@@ -107,6 +108,7 @@ function pickFile(file){
  const img=el('img','photo-image');img.src=photoURL;img.alt='撮影した品目の写真';preview.append(img);preview.hidden=false;
  setMessage('ラベルの文字を読み取ってから、外観AIで補助判別します…');
  showLabelControls();
+ renderQuickResult([]);
  const job=currentId;
  resizePhoto(file).then(data=>{
    if(!open||job!==currentId)return;
@@ -136,9 +138,15 @@ function showLabelControls(){
  const msg=el('p','subtle','ラベルを読み取ります。読み取りが難しいマークは、自分で選ぶこともできます。');msg.id='photoLabelStatus';target.append(msg);
  const row=el('div','photo-label-choices');
  const opts=[['plastic','プラ'],['pet','PET'],['paper','紙'],['aluminum','アルミ'],['steel','スチール'],['spray','スプレー'],['battery','電池']];
- for(const [id,title] of opts)row.append(btn(title,'photo-label-choice',()=>{labelSelection=id;renderLabelChoices([{id,label:title,evidence:'写真を見て利用者が選択'}]);}));
+ for(const [id,title] of opts)row.append(btn(title,'photo-label-choice',()=>{
+   labelSelection=id;
+   const manual=[{id,label:title+'（本人確認）',evidence:'利用者が写真のマークを確認して選択'}];
+   renderQuickResult(manual);
+   renderLabelChoices(manual);
+ }));
  target.append(row);
- const output=el('div','photo-label-output');output.id='photoLabelOutput';target.append(output);
+ const details=el('details','photo-label-details');details.append(el('summary','','読み取った文字と他の候補を見る'));
+ const output=el('div','photo-label-output');output.id='photoLabelOutput';details.append(output);target.append(details);
 }
 function labelNorm(x){return String(x||'').normalize('NFKC').toLowerCase().replace(/[\s　・()（）_\-ー]/g,'');}
 function findLabelMatches(patterns){
@@ -164,7 +172,7 @@ function renderLabelChoices(marks,rawText=''){
    const card=el('div','photo-candidate');
    card.append(el('strong','',option.title),el('p','subtle','根拠：'+mark.evidence));
    card.append(notice(option.caution,true));
-   const items=findLabelMatches(option.patterns);
+   const items=mark.id==='bottle'?[]:findLabelMatches(option.patterns);
    if(items.length){
      for(const item of items.slice(0,3)){
        const b=btn(item.name+'　›','photo-match',()=>{closePhoto();window.GOMI_PHOTO_API.detail(item);});
@@ -189,16 +197,31 @@ async function classifyWithLabel(file,image,job){
    if(status)status.textContent='日本語OCR完了。結果は推定であり、識別マークを確実に認識したとは限りません。';
    const marks=result.marks||[];
    if(labelSelection&&!marks.some(x=>x.id===labelSelection))marks.unshift({id:labelSelection,label:'利用者によるマーク指定',evidence:'利用者が写真を確認して選択'});
+   renderQuickResult(marks,result.text||'');
    renderLabelChoices(marks,result.text||'');
  }catch(err){
    if(!open||job!==currentId)return;
    console.warn('ラベルOCRに失敗しました',err);
    if(status)status.textContent='ラベルの自動読み取りに失敗しました。上のマークを選ぶか、外観AIの候補をご確認ください。';
-   if(labelSelection)renderLabelChoices([{id:labelSelection,label:'利用者によるマーク指定',evidence:'利用者が写真を確認して選択'}]);
+   if(labelSelection){
+     const manual=[{id:labelSelection,label:'利用者によるマーク指定',evidence:'利用者が写真を確認して選択'}];
+     renderQuickResult(manual);
+     renderLabelChoices(manual);
+   }
  }
  if(open&&job===currentId)classify(image,job);
 }
 
+function renderQuickResult(marks,rawText=''){
+ const target=$('photoQuickResult');if(!target||!window.GOMI_DISPOSAL_GUIDE)return;
+ const cityId=window.GOMI_PHOTO_API?.getCurrentCityId?.()||'';
+ window.GOMI_DISPOSAL_GUIDE.render(target,marks,cityId,()=>{
+   labelSelection='plastic';
+   const choice=[{id:'plastic',label:'プラマーク（本人確認）',evidence:'利用者が実物のマークを確認'}];
+   renderQuickResult(choice,rawText);
+   renderLabelChoices(choice,rawText);
+ });
+}
 function setMessage(msg,warning=false){
   const target=$('photoAnalysis');if(!target)return;
   target.replaceChildren(notice(msg,warning));
