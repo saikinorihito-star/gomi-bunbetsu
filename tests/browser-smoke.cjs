@@ -39,6 +39,7 @@ const server=http.createServer(async(req,res)=>{
    await page.locator('#openPhoto').click();
    const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
    await page.locator('#photoLibrary').setInputFiles({name:'sample.png',mimeType:'image/png',buffer:png});
+   await page.locator('.photo-visual-details > summary').click();
    await page.getByRole('button',{name:'もう一度判別する',exact:true}).waitFor();
    await page.getByRole('button',{name:'もう一度判別する',exact:true}).click();await page.getByRole('button',{name:'もう一度判別する',exact:true}).waitFor();
    await page.getByRole('button',{name:'文字で検索する',exact:true}).click();
