@@ -28,3 +28,9 @@ test('classification requires photo or user evidence; a bottle alone is not PET'
  assert.equal(guide.determine([{id:'bottle'},{id:'battery'},{id:'plastic'}])[1],'battery');
  assert.equal(guide.determine([{id:'spray'},{id:'plastic'}])[1],'spray');
 });
+test('aluminum labels outrank the generic bottle category, but hazards retain priority',()=>{
+ assert.equal(guide.determine([{id:'bottle'},{id:'aluminum'}])[1],'aluminum');
+ assert.equal(guide.determine([{id:'aluminum'},{id:'foodcan'}])[1],'aluminum');
+ assert.equal(guide.determine([{id:'aluminum'},{id:'spray'}])[1],'spray');
+ assert.equal(guide.determine([{id:'aluminum'},{id:'battery'}])[1],'battery');
+});
