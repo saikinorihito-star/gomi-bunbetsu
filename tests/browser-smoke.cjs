@@ -37,6 +37,15 @@ const server=http.createServer(async(req,res)=>{
    await page.locator('#cityPicker').click();await page.getByRole('button',{name:'テスト市',exact:true}).click();
    const before=await page.evaluate(key=>localStorage.getItem(key),key);assert.deepEqual(JSON.parse(before),saved);
    await page.locator('#openPhoto').click();
+   // Aluminum label → direct Takaoka disposal instructions → drink-can confirmation → collection day.
+   await page.evaluate(()=>{
+     const host=document.getElementById('photoQuickResult');
+     const paint=marks=>window.GOMI_DISPOSAL_GUIDE.render(host,marks,'takaoka',()=>paint([{id:'aluminum'},{id:'foodcan'}]));
+     paint([{id:'aluminum',label:'アルミ'}]);
+   });
+   assert.match(await page.locator('#photoQuickResult').textContent(),/飲食用缶類/);
+   await page.locator('#photoQuickResult').getByRole('button',{name:'これは飲食用の缶です → 収集日を表示'}).click();
+   assert(await page.locator('#photoQuickResult .guide-schedule').isVisible());
    const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
    await page.locator('#photoLibrary').setInputFiles({name:'sample.png',mimeType:'image/png',buffer:png});
    await page.locator('.photo-visual-details > summary').click();
