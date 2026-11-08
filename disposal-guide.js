@@ -5,7 +5,8 @@ const STORAGE='gomi-collection-district-v1';
 const LINKS={
 plastic:'https://www.city.takaoka.toyama.jp/gyosei/kurashi_tetsuzuki/gomi_recycle/2/5710.html',
 calendar:'https://www.city.takaoka.toyama.jp/soshiki/kankyoseisakuka/2/1/4/1/1/4860.html',
-towns:'https://www.city.takaoka.toyama.jp/soshiki/kankyoseisakuka/2/1/4/3/2/10496.html'};
+towns:'https://www.city.takaoka.toyama.jp/soshiki/kankyoseisakuka/2/1/4/3/2/10496.html',
+aluminum:'https://www.city.takaoka.toyama.jp/material/files/group/25/r610bunbetuitiran.pdf'};
 const WEEK=['日','月','火','水','木','金','土'];
 const GROUPS=[
 ['川原',0,1],['西条',1,1],
@@ -66,12 +67,13 @@ function determine(marks){
  if(ids.has('spray'))return ['スプレー容器の可能性','spray'];
  if(ids.has('pet'))return ['PETボトルの可能性','pet'];
  if(ids.has('plastic'))return ['プラスチック資源類','plastic'];
+ if(ids.has('aluminum'))return ['アルミの識別表示を検出','aluminum'];
+ if(ids.has('steel'))return ['スチールの識別表示を検出','steel'];
  if(ids.has('bottle'))return ['ボトル容器（材質は未確認）','bottle'];
- if(ids.has('aluminum')||ids.has('steel'))return ['金属製容器の可能性','metal'];
  if(ids.has('paper'))return ['紙製容器の可能性','paper'];
  return ['品目を確認してください','unknown'];
 }
-function render(host,marks,cityId,confirmPlastic){
+function render(host,marks,cityId,onConfirm,rawText=''){
  if(!host)return;
  const isTakaoka=cityId==='takaoka',found=determine(marks),type=found[1];
  const box=el('section','guide-card');
@@ -83,9 +85,22 @@ function render(host,marks,cityId,confirmPlastic){
    box.append(el('p','guide-small','袋は中身が見える透明・半透明の20L以上。プラマークは回収可否を保証しません。'));
    box.append(schedulePanel(host));
    box.append(link('分別の公式根拠（高岡市）',LINKS.plastic));
+ }else if(isTakaoka&&type==='aluminum'){
+   // 「アルミ」の文字のみでは缶の用途は分からない。飲食用かを明示的に確認する。
+   const canConfirmed=marks.some(m=>m.id==='foodcan')||/あきかん|空き缶|飲料缶|缶飲料/.test(rawText);
+   box.append(el('p','guide-answer','飲食用のアルミ缶なら「飲食用缶類（スチール缶・アルミ缶）」として出します。'));
+   box.append(el('p','', '出し方：中身を空にして、きれいに洗ってから飲食用缶類の回収へ。'));
+   if(canConfirmed){
+     box.append(el('p','guide-small','飲食用の缶と確認した場合の収集日を表示しています。'));
+     box.append(schedulePanel(host));
+   }else{
+     box.append(button('これは飲食用の缶です → 収集日を表示',()=>onConfirm&&onConfirm('aluminum'),'guide-confirm'));
+     box.append(el('p','guide-small','スプレー缶、塗料缶、飲食用以外の容器は違う区分です。用途を確認してから選んでください。'));
+   }
+   box.append(link('飲食用アルミ缶の公式分別一覧（高岡市）',LINKS.aluminum));
  }else if(isTakaoka&&type==='bottle'){
    box.append(el('p','', '容器の形は認識しましたが、材質と識別マークをまだ確定できません。'));
-   box.append(button('ラベルに「プラ」マークがある → 確認',()=>confirmPlastic&&confirmPlastic(),'guide-confirm'));
+   box.append(button('ラベルに「プラ」マークがある → 確認',()=>onConfirm&&onConfirm('plastic'),'guide-confirm'));
    box.append(el('p','guide-small','実物のプラマークを見つけた場合だけ押してください。飲食用PETボトルは別区分です。'));
  }else{
    box.append(el('p','',type==='battery'?'電池類は通常のごみに混ぜないでください。':type==='spray'?'中身・ガスの残量を確認し、市の安全な処分方法を確認してください。':'用途・材質を確認してから、ごみ区分を選びます。'));
@@ -94,7 +109,7 @@ function render(host,marks,cityId,confirmPlastic){
  if(!isTakaoka)box.append(el('p','guide-small','登録自治体のルールと収集日は未確認です。公式資料を参照してください。'));
  box.append(el('p','guide-disclaimer','写真の認識結果は推定です。材質・内容物・電池の有無を確認し、公式ルールに従ってください。'));
  host.replaceChildren(box);
- host._refresh=()=>render(host,marks,cityId,confirmPlastic);
+ host._refresh=()=>render(host,marks,cityId,onConfirm,rawText);
 }
 window.GOMI_DISPOSAL_GUIDE={render,nextCollection,determine,GROUPS,LINKS};
 })();
