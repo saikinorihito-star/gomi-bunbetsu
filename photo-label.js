@@ -16,20 +16,24 @@
     }).catch(err=>{loadPromise=null;throw err;});
     return loadPromise;
   }
-  function imageForOCR(file){
+  function imageForOCR(file,focus=false){
     return new Promise((resolve,reject)=>{
       const url=URL.createObjectURL(file),img=new Image();
       img.onload=()=>{
         URL.revokeObjectURL(url);
         try{
-          const limit=1900,scale=Math.min(1,limit/Math.max(img.naturalWidth,img.naturalHeight));
+          // 小さな識別表示は全体写真の縮小で消えやすい。再確認時は中央のラベル領域を原寸から拡大する。
+          const iw=img.naturalWidth,ih=img.naturalHeight;
+          const sx=focus?Math.floor(iw*0.12):0,sy=focus?Math.floor(ih*0.15):0;
+          const sw=focus?Math.floor(iw*0.80):iw,sh=focus?Math.floor(ih*0.75):ih;
+          const limit=focus?2200:1900,scale=Math.min(focus?2:1,limit/Math.max(sw,sh));
           const canvas=document.createElement('canvas');
-          canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
-          canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+          canvas.width=Math.max(1,Math.round(sw*scale));
+          canvas.height=Math.max(1,Math.round(sh*scale));
           const ctx=canvas.getContext('2d');
           if(!ctx)throw Error('画像の処理に失敗しました');
           ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
-          ctx.drawImage(img,0,0,canvas.width,canvas.height);
+          ctx.drawImage(img,sx,sy,sw,sh,0,0,canvas.width,canvas.height);
           const image=canvas.toDataURL('image/jpeg',0.92);
           canvas.width=0;canvas.height=0;resolve(image);
         }catch(err){reject(err);}
@@ -46,7 +50,9 @@
     // 「プラスチック」はプラマーク自体を意味しない。商品本体の記述も混在する。
     if(/プラ(?!スチック|イマー|イベート)/.test(compact))found('plastic','「プラ」の文字','ラベル中に「プラ」と読める文字');
     if(/PET\s*1|ペットボトル|ペット素材|PETボトル/i.test(raw))found('pet','PET関連の文字','PET表記またはペットボトルの文字');
-    if(/アルミ缶|アルミ製|ALUMIN(?:UM|IUM)/i.test(raw))found('aluminum','アルミ関連の文字','アルミ関連の表示');
+    // 飲料缶などのリサイクルマークには「アルミ」の2〜3文字だけが印刷される。
+    // 単独のアルミ表記は材質候補であり、飲食用缶と断定しない。
+    if(/アルミ|ALUMIN(?:UM|IUM)/i.test(compact))found('aluminum','「アルミ」の文字','ラベルからアルミの文字を読み取り');
     if(/スチール缶|STEEL\s*CAN/i.test(raw))found('steel','スチール関連の文字','スチール関連の表示');
     if(/紙製容器包装|紙パック|紙容器/.test(raw))found('paper','紙容器の文字','紙容器・紙パックに関する表示');
     if(/高圧ガス|LPG|火気と高温|可燃性ガス|エアゾール|噴射剤/.test(raw))found('spray','ガス／噴射の注意書き','スプレー・ガスの可能性');
@@ -66,7 +72,20 @@
         logger:m=>{if(m.status==='loading language traineddata'||m.status==='loading tesseract core')progress('文字認識用のデータを読み込んでいます…');else if(m.status==='recognizing text')progress('ラベルの文字を認識しています…');}
       });
       const response=await worker.recognize(image);
-      const parsed=parse(response?.data?.text||'');
+      let recognized=response?.data?.text||'';
+      let parsed=parse(recognized);
+      const materialIds=new Set(['plastic','pet','paper','aluminum','steel','battery','spray']);
+      if(!parsed.marks.some(m=>materialIds.has(m.id))){
+        // 同じワーカーを再利用し、ラベル領域だけ解像度を上げて二度目のOCRを試す。
+        progress('小さな識別表示を拡大してもう一度読み取っています…');
+        try{
+          const closeup=await imageForOCR(file,true);
+          const retry=await worker.recognize(closeup);
+          recognized+='\n'+(retry?.data?.text||'');
+          parsed=parse(recognized);
+          parsed.zoomed=true;
+        }catch(err){console.warn('拡大OCRは実行できませんでした',err);}
+      }
       parsed.confidence=Number(response?.data?.confidence)||0;
       return parsed;
     } finally {if(worker)await worker.terminate();}
