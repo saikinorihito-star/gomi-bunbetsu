@@ -21,3 +21,9 @@ test('PET and paper are distinct label candidates',()=>{
   assert(ids('紙製容器包装').includes('paper'));
   assert(!ids('PET1').includes('plastic'));
 });
+test('standalone aluminum recycling label is recognized without 缶 or 製',()=>{
+  assert.deepEqual(ids('アルミ'),['aluminum']);
+  assert.deepEqual(ids('あきかんはリサイクル\nアル ミ'),['aluminum']);
+  assert(ids('ALUMINUM').includes('aluminum'));
+  assert(!ids('亜鉛・鉄').includes('aluminum'));
+});
