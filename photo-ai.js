@@ -108,7 +108,8 @@ function pickFile(file){
  const img=el('img','photo-image');img.src=photoURL;img.alt='撮影した品目の写真';preview.append(img);preview.hidden=false;
  setMessage('ラベルの文字を読み取ってから、外観AIで補助判別します…');
  showLabelControls();
- renderQuickResult([]);
+ const quick=$('photoQuickResult');
+ if(quick)quick.replaceChildren(el('div','notice','ラベルの文字と識別表示を確認しています…'));
  const job=currentId;
  resizePhoto(file).then(data=>{
    if(!open||job!==currentId)return;
@@ -207,7 +208,7 @@ async function classifyWithLabel(file,image,job){
      const manual=[{id:labelSelection,label:'利用者によるマーク指定',evidence:'利用者が写真を確認して選択'}];
      renderQuickResult(manual);
      renderLabelChoices(manual);
-   }
+   }else renderQuickResult([]);
  }
  if(open&&job===currentId)classify(image,job);
 }
@@ -215,12 +216,13 @@ async function classifyWithLabel(file,image,job){
 function renderQuickResult(marks,rawText=''){
  const target=$('photoQuickResult');if(!target||!window.GOMI_DISPOSAL_GUIDE)return;
  const cityId=window.GOMI_PHOTO_API?.getCurrentCityId?.()||'';
- window.GOMI_DISPOSAL_GUIDE.render(target,marks,cityId,()=>{
-   labelSelection='plastic';
-   const choice=[{id:'plastic',label:'プラマーク（本人確認）',evidence:'利用者が実物のマークを確認'}];
+ window.GOMI_DISPOSAL_GUIDE.render(target,marks,cityId,(kind='plastic')=>{
+   labelSelection=kind;
+   const choice=[{id:kind,label:kind==='aluminum'?'アルミ表示（本人確認）':'プラマーク（本人確認）',evidence:'利用者が実物の表示を確認'}];
+   if(kind==='aluminum')choice.push({id:'foodcan',label:'飲食用缶（本人確認）',evidence:'利用者が缶の用途を確認'});
    renderQuickResult(choice,rawText);
    renderLabelChoices(choice,rawText);
- });
+ },rawText);
 }
 function setMessage(msg,warning=false){
   const target=$('photoAnalysis');if(!target)return;
